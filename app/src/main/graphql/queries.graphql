@@ -1,0 +1,117 @@
+# get a list of character
+query characters($page : Int,$filter : FilterCharacter) {
+    characters(page: $page,filter: $filter) {
+        info {
+            count
+            next
+            prev
+            pages
+        }
+        results {
+            name
+            status
+            type
+            gender
+            location {
+                name
+            }
+            image
+            episode {
+                name
+            }
+        }
+    }
+}
+
+# get a single character by ID
+query character($id : ID!) {
+    character(id: $id) {
+        id
+        name
+        status
+        species
+        type
+        gender
+        origin {
+            name
+        }
+        location {
+            name
+        }
+        image
+        episode {
+            id
+            name
+            air_date
+        }
+    }
+}
+
+# get multiple characters by IDs
+query charactersByIds($ids : [ID!]!) {
+    charactersByIds(ids: $ids) {
+        id
+        name
+        status
+        species
+        type
+        gender
+        origin {
+            name
+        }
+        location {
+            name
+        }
+        image
+        episode {
+            id
+            name
+            air_date
+        }
+    }
+}
+
+# get a list of all episodes
+query episodes($page : Int,$filter : FilterEpisode) {
+    episodes(page: $page,filter: $filter) {
+        info {
+            count
+            next
+            prev
+            pages
+        }
+        results {
+            id
+            name
+            characters {
+                id
+            }
+        }
+    }
+}
+
+# get an episode by its ID
+query episode($id : ID!) {
+    episode(id: $id) {
+        id
+        name
+        air_date
+        characters {
+            id
+            name
+        }
+    }
+}
+
+# get multiple episodes by IDs
+query episodeByIds($ids : [ID!]!) {
+    episodesByIds(ids: $ids) {
+        id
+        name
+        air_date
+        characters {
+            id
+            name
+        }
+    }
+}

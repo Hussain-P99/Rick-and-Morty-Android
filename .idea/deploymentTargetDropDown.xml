@@ -2,6 +2,15 @@
 <project version="4">
   <component name="deploymentTargetDropDown">
     <value>
+      <entry key="RickAndMortyRepositoryTest">
+        <State />
+      </entry>
+      <entry key="RickAndMortyRepositoryTest.network request failed">
+        <State />
+      </entry>
+      <entry key="RickAndMortyRepositoryTest.network request succeeded but response is empty or null">
+        <State />
+      </entry>
       <entry key="app">
         <State />
       </entry>
