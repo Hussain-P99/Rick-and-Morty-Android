@@ -2,23 +2,12 @@
 query characters($page : Int,$filter : FilterCharacter) {
     characters(page: $page,filter: $filter) {
         info {
-            count
             next
-            prev
-            pages
         }
         results {
+            id
             name
-            status
-            type
-            gender
-            location {
-                name
-            }
             image
-            episode {
-                name
-            }
         }
     }
 }

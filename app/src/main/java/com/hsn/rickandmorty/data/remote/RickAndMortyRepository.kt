@@ -5,7 +5,6 @@ import com.hsn.rickandmorty.CharactersQuery
 import com.hsn.rickandmorty.EpisodeQuery
 import com.hsn.rickandmorty.EpisodesQuery
 import com.hsn.rickandmorty.models.ApiResult
-import kotlinx.coroutines.flow.Flow
 
 
 interface RickAndMortyRepository {

@@ -1,5 +1,6 @@
 package com.hsn.rickandmorty.data.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hsn.rickandmorty.CharacterQuery
@@ -10,6 +11,7 @@ import com.hsn.rickandmorty.data.remote.AppRepository
 import com.hsn.rickandmorty.models.ApiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,18 +22,18 @@ import javax.inject.Inject
 @HiltViewModel
 class DataSourceViewModel @Inject constructor(private val appRepository : AppRepository) : ViewModel(){
 
-    private var page = 1
-
-    private var hasMoreData = true
-
-    private fun incrementPageCount() = page++
-
-    private fun resetPageCount() {
-        page = 1
-        hasMoreData = true
+    companion object {
+        private const val TAG = "DataSourceViewModel"
     }
 
-    fun hasMoreData() = hasMoreData
+    private var characterPageCount = 1
+    private var episodePageCount = 1
+
+    private var hasMoreCharacters = false
+    private var hasMoreEpisodes = false
+
+    fun hasMoreCharacters() = hasMoreCharacters
+    fun hasMoreEpisodes() = hasMoreEpisodes
 
 
     private val _error = MutableStateFlow<String?>(null)
@@ -42,6 +44,9 @@ class DataSourceViewModel @Inject constructor(private val appRepository : AppRep
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading :StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching :StateFlow<Boolean> = _isSearching.asStateFlow()
 
     private val _character = MutableStateFlow<CharacterQuery.Character?>(null)
     val character : StateFlow<CharacterQuery.Character?> = _character.asStateFlow()
@@ -58,29 +63,33 @@ class DataSourceViewModel @Inject constructor(private val appRepository : AppRep
     private val _episodeSearchResult = MutableStateFlow<List<EpisodesQuery.Result?>>(listOf())
     val episodeSearchResult : StateFlow<List<EpisodesQuery.Result?>> = _episodeSearchResult.asStateFlow()
 
+    private var searchJob : Job? = null
 
     init {
         getAllCharacters()
+        getAllEpisodes()
     }
 
     fun getAllCharacters() {
         viewModelScope.launch(Dispatchers.IO) {
-            appRepository.getAllCharacters(page).collect { result ->
+            Log.i(TAG, "getAllCharacters: fetching page : $characterPageCount")
+            hasMoreCharacters = false
+            appRepository.getAllCharacters(characterPageCount).collect { result ->
                 withContext(Dispatchers.Main) {
                     when(result) {
                         is ApiResult.Error, is ApiResult.Loading -> {
                             handleErrorAndLoadingResult(result)
                         }
                         is ApiResult.Success -> {
-                            _isLoading.value = false
                             if(result.data?.info?.next != null) {
-                                hasMoreData = true
-                                incrementPageCount()
+                                hasMoreCharacters = true
+                                characterPageCount++
                             } else {
-                                hasMoreData = false
+                                hasMoreCharacters = false
                             }
-
                             _characters.value += result.data?.results ?: listOf()
+                            Log.i(TAG, "getAllCharacters: received ${result.data?.results?.size} items")
+                            Log.i(TAG, "getAllCharacters: total ${_characters.value.size} items")
                         }
                     }
                 }
@@ -97,7 +106,6 @@ class DataSourceViewModel @Inject constructor(private val appRepository : AppRep
                             handleErrorAndLoadingResult(result)
                         }
                         is ApiResult.Success -> {
-                            _isLoading.value = false
                             _character.value = result.data
                         }
                     }
@@ -107,6 +115,8 @@ class DataSourceViewModel @Inject constructor(private val appRepository : AppRep
     }
 
     fun searchCharacter(query : String) {
+        _isSearching.value = query.isNotEmpty()
+        if (searchJob?.isActive == true) searchJob?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
             appRepository.searchCharacter(query).collect { result ->
                 when (result) {
@@ -114,7 +124,6 @@ class DataSourceViewModel @Inject constructor(private val appRepository : AppRep
                         handleErrorAndLoadingResult(result)
                     }
                     is ApiResult.Success -> {
-                        _isLoading.value = false
                         _characterSearchResult.value = result.data?.results ?: listOf()
                     }
                 }
@@ -123,22 +132,25 @@ class DataSourceViewModel @Inject constructor(private val appRepository : AppRep
     }
 
     fun getAllEpisodes() {
+        Log.i(TAG, "getAllEpisodes: fetching page : $episodePageCount")
+        hasMoreEpisodes = false
         viewModelScope.launch(Dispatchers.IO) {
-            appRepository.getAllEpisodes(page).collect { result ->
+            appRepository.getAllEpisodes(episodePageCount).collect { result ->
                 withContext(Dispatchers.Main) {
                     when (result) {
                         is ApiResult.Error, is ApiResult.Loading -> {
                             handleErrorAndLoadingResult(result)
                         }
                         is ApiResult.Success -> {
-                            _isLoading.value = false
                             if(result.data?.info?.next != null) {
-                                hasMoreData = true
-                                incrementPageCount()
+                                hasMoreEpisodes = true
+                                episodePageCount++
                             } else {
-                                hasMoreData = false
+                                hasMoreEpisodes = false
                             }
-                            _episodes.value = result.data?.results ?: listOf()
+                            _episodes.value += result.data?.results ?: listOf()
+                            Log.i(TAG, "getAllEpisodes: received ${result.data?.results?.size} items")
+                            Log.i(TAG, "getAllEpisodes: total ${_episodes.value.size} items")
                         }
                     }
                 }
@@ -155,7 +167,6 @@ class DataSourceViewModel @Inject constructor(private val appRepository : AppRep
                             handleErrorAndLoadingResult(result)
                         }
                         is ApiResult.Success -> {
-                            _isLoading.value = false
                             _episode.value = result.data
                         }
                     }
@@ -165,14 +176,15 @@ class DataSourceViewModel @Inject constructor(private val appRepository : AppRep
     }
 
     fun searchEpisode(query : String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        _isSearching.value = query.isNotEmpty()
+        if (searchJob?.isActive == true) searchJob?.cancel()
+        searchJob = viewModelScope.launch(Dispatchers.IO) {
             appRepository.searchEpisode(query).collect { result ->
                 when(result) {
                     is ApiResult.Error, is ApiResult.Loading -> {
                         handleErrorAndLoadingResult(result)
                     }
                     is ApiResult.Success -> {
-                        _isLoading.value = false
                         _episodeSearchResult.value = result.data?.results ?: listOf()
                     }
                 }
@@ -184,11 +196,10 @@ class DataSourceViewModel @Inject constructor(private val appRepository : AppRep
     private fun<T> handleErrorAndLoadingResult(result : ApiResult<T>) {
         when(result) {
             is ApiResult.Error -> {
-                _isLoading.value = false
                 _error.value = result.message
             }
             is ApiResult.Loading -> {
-                _isLoading.value = true
+                _isLoading.value = result.isLoading
             }
             else -> {}
         }

@@ -87,6 +87,9 @@ dependencies {
     kapt("com.google.dagger:hilt-android-compiler:2.44")
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
+
+    // coil - for image loading
+    implementation("io.coil-kt:coil-compose:2.4.0")
 }
 
 kapt {
